@@ -1,0 +1,186 @@
+⚙️ Backend Requirement Document
+Project Title: Crypto Wallet App
+ Backend Framework: Node.js (Express.js)
+ Database: MongoDB
+ Storage: AWS S3
+ Authentication: JWT
+ Scheduler: Cron jobs
+
+1. Database Schema (MongoDB Models)
+1.1 User Model
+{
+  "_id": "ObjectId",
+  "first_name": "String",
+  "last_name": "String",
+  "email": "String (unique)",
+  "password": "Hashed String",
+  "profile_image": "String (S3 URL)",
+  "deposit_amount": "Number (default: 0)",
+  "profit_amount": "Number (default: 0)",
+  "total_amount": "Number (default: 0)",
+  "status": "String (active, blocked)",
+  "created_at": "Date",
+  "updated_at": "Date"
+}
+
+1.2 Deposit Model
+{
+  "_id": "ObjectId",
+  "user_id": "ObjectId",
+  "screenshot_url": "String (S3 URL)",
+  "amount": "Number",
+  "status": "String (pending, approved, rejected)",
+  "created_at": "Date",
+  "updated_at": "Date"
+}
+
+1.3 Withdrawal Model
+{
+  "_id": "ObjectId",
+  "user_id": "ObjectId",
+  "amount": "Number",
+  "platform": "String (Binance, Trust Wallet)",
+  "wallet_address": "String",
+  "status": "String (pending, approved, rejected)",
+  "created_at": "Date",
+  "updated_at": "Date"
+}
+
+1.4 Profit Log Model
+{
+  "_id": "ObjectId",
+  "user_id": "ObjectId",
+  "amount": "Number",
+  "date": "Date"
+}
+
+1.5 Notification Model
+{
+  "_id": "ObjectId",
+  "user_id": "ObjectId",
+  "message": "String",
+  "type": "String (deposit, withdrawal, profit)",
+  "status": "String (read, unread)",
+  "created_at": "Date"
+}
+
+
+2. API Endpoints
+2.1 Auth APIs
+POST /auth/register → Register new user
+
+
+POST /auth/login → Login, return JWT
+
+
+2.2 User APIs
+GET /user/profile → Get profile (JWT required)
+
+
+PUT /user/profile → Update profile (name, profile image, password)
+
+
+2.3 Deposit APIs
+POST /deposit/request → Upload screenshot + amount → status pending
+
+
+GET /deposit/history → Get user deposits
+
+
+(Admin only:)
+GET /admin/deposits → List all deposit requests
+
+
+PUT /admin/deposit/:id/approve → Approve request, update wallet
+
+
+PUT /admin/deposit/:id/reject → Reject request
+
+
+2.4 Withdrawal APIs
+POST /withdraw/request → User submits request (amount, platform, wallet address)
+
+
+GET /withdraw/history → Get user withdrawals
+
+
+(Admin only:)
+GET /admin/withdrawals → List all withdrawal requests
+
+
+PUT /admin/withdraw/:id/approve → Approve request (admin manually processes externally)
+
+
+PUT /admin/withdraw/:id/reject → Reject request
+
+
+2.5 Wallet APIs
+GET /wallet → Return deposit_amount, profit_amount, total_amount
+
+
+GET /wallet/transactions → Return deposit, withdrawal, and profit logs
+
+
+2.6 Notifications APIs
+GET /notifications → Fetch user notifications
+
+
+PUT /notifications/:id/read → Mark notification as read
+
+
+
+3. Cron Job (Daily Profit)
+Runs once every 24 hours (e.g., midnight).
+
+
+For each active user:
+
+
+Calculate 1% of deposit_amount
+
+
+Add to profit_amount
+
+
+Update total_amount = deposit_amount + profit_amount
+
+
+Create entry in ProfitLog
+
+
+Create Notification → “Daily profit credited”
+
+
+
+4. Admin Panel Integration
+Web app (React.js) will consume the same APIs with admin JWT.
+
+
+Admin APIs will be role-protected.
+
+
+
+5. Security Considerations
+Use bcrypt for password hashing.
+
+
+Use JWT tokens with expiration.
+
+
+Validate all inputs (e.g., withdrawal amount ≤ total balance).
+
+
+Store screenshots securely in AWS S3 with signed URLs.
+
+
+
+6. Reports & Analytics APIs (Admin)
+GET /admin/reports/summary → Total deposits, withdrawals, profits, active users.
+
+
+GET /admin/reports/users → User-wise breakdown (balances, transactions).
+
+
+
+
+
