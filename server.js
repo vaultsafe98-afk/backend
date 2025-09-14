@@ -24,13 +24,12 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS configuration
+// CORS configuration - Allow all origins
 app.use(cors({
-    origin: [
-        process.env.FRONTEND_URL || 'http://localhost:3000',
-        'http://localhost:3001' // Admin panel
-    ],
-    credentials: true
+    origin: true, // Allow all origins
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Logging
