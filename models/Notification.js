@@ -14,7 +14,7 @@ const notificationSchema = new mongoose.Schema({
     type: {
         type: String,
         required: [true, 'Type is required'],
-        enum: ['deposit', 'withdrawal', 'profit', 'general']
+        enum: ['deposit', 'withdrawal', 'profit', 'general', 'balance_increase', 'balance_decrease', 'balance_adjustment']
     },
     user_status: {
         type: String,

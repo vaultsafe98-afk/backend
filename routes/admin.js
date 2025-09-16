@@ -7,6 +7,36 @@ const { adminAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// @route   GET /api/admin/dashboard-stats
+// @desc    Get dashboard statistics
+// @access  Admin
+router.get('/dashboard-stats', adminAuth, async (req, res) => {
+    try {
+        const totalUsers = await User.countDocuments();
+        const totalDeposits = await Deposit.aggregate([
+            { $match: { status: 'approved' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+        const totalWithdrawals = await Withdrawal.aggregate([
+            { $match: { status: 'approved' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]);
+        const pendingDeposits = await Deposit.countDocuments({ status: 'pending' });
+        const pendingWithdrawals = await Withdrawal.countDocuments({ status: 'pending' });
+
+        res.json({
+            totalUsers,
+            totalDeposits: totalDeposits[0]?.total || 0,
+            totalWithdrawals: totalWithdrawals[0]?.total || 0,
+            pendingDeposits,
+            pendingWithdrawals,
+        });
+    } catch (error) {
+        console.error('Dashboard stats error:', error);
+        res.status(500).json({ message: 'Failed to fetch dashboard statistics' });
+    }
+});
+
 // @route   GET /api/admin/deposits
 // @desc    Get all deposit requests
 // @access  Admin
