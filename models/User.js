@@ -36,11 +36,6 @@ const userSchema = new mongoose.Schema({
         default: 0,
         min: [0, 'Deposit amount cannot be negative']
     },
-    profit_amount: {
-        type: Number,
-        default: 0,
-        min: [0, 'Profit amount cannot be negative']
-    },
     total_amount: {
         type: Number,
         default: 0,
@@ -92,7 +87,7 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 
 // Calculate total amount
 userSchema.methods.calculateTotalAmount = function () {
-    this.total_amount = this.deposit_amount + this.profit_amount;
+    this.total_amount = this.deposit_amount;
     return this.total_amount;
 };
 

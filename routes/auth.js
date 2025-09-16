@@ -48,7 +48,6 @@ router.post('/register', validateRegistration, async (req, res) => {
             email: user.email,
             profileImage: user.profile_image,
             depositAmount: user.deposit_amount,
-            profitAmount: user.profit_amount,
             totalAmount: user.total_amount,
             status: user.status,
             createdAt: user.created_at
@@ -100,7 +99,6 @@ router.post('/login', validateLogin, async (req, res) => {
             email: user.email,
             profileImage: user.profile_image,
             depositAmount: user.deposit_amount,
-            profitAmount: user.profit_amount,
             totalAmount: user.total_amount,
             status: user.status,
             role: user.role,
@@ -196,7 +194,6 @@ router.post('/verify', async (req, res) => {
             email: user.email,
             profileImage: user.profile_image,
             depositAmount: user.deposit_amount,
-            profitAmount: user.profit_amount,
             totalAmount: user.total_amount,
             status: user.status,
             role: user.role,

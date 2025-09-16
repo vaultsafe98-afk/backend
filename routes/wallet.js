@@ -2,7 +2,6 @@ const express = require('express');
 const User = require('../models/User');
 const Deposit = require('../models/Deposit');
 const Withdrawal = require('../models/Withdrawal');
-const ProfitLog = require('../models/ProfitLog');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -21,7 +20,6 @@ router.get('/', auth, async (req, res) => {
         res.json({
             balance: {
                 deposit: user.deposit_amount,
-                profit: user.profit_amount,
                 total: user.total_amount
             },
             lastUpdated: user.updated_at
@@ -51,11 +49,6 @@ router.get('/transactions', auth, async (req, res) => {
             .sort({ created_at: -1 })
             .select('amount status platform created_at');
 
-        // Get profit logs
-        const profits = await ProfitLog.find({ user_id: req.user._id })
-            .sort({ date: -1 })
-            .select('amount date created_at');
-
         // Combine and sort all transactions
         const allTransactions = [
             ...deposits.map(deposit => ({
@@ -73,14 +66,6 @@ router.get('/transactions', auth, async (req, res) => {
                 status: withdrawal.status,
                 date: withdrawal.created_at,
                 description: `Withdrawal to ${withdrawal.platform}`
-            })),
-            ...profits.map(profit => ({
-                id: profit._id,
-                type: 'profit',
-                amount: profit.amount,
-                status: 'approved',
-                date: profit.date,
-                description: 'Daily Profit'
             }))
         ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -187,46 +172,5 @@ router.get('/transactions/withdrawals', auth, async (req, res) => {
     }
 });
 
-// @route   GET /api/wallet/transactions/profits
-// @desc    Get user's profit transactions only
-// @access  Private
-router.get('/transactions/profits', auth, async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
-
-        const profits = await ProfitLog.find({ user_id: req.user._id })
-            .sort({ date: -1 })
-            .skip(skip)
-            .limit(limit);
-
-        const total = await ProfitLog.countDocuments({ user_id: req.user._id });
-
-        const profitTransactions = profits.map(profit => ({
-            id: profit._id,
-            type: 'profit',
-            amount: profit.amount,
-            status: 'approved',
-            date: profit.date,
-            description: 'Daily Profit',
-            depositAmount: profit.deposit_amount,
-            profitRate: profit.profit_rate
-        }));
-
-        res.json({
-            profits: profitTransactions,
-            pagination: {
-                currentPage: page,
-                totalPages: Math.ceil(total / limit),
-                totalItems: total,
-                itemsPerPage: limit
-            }
-        });
-    } catch (error) {
-        console.error('Get profit transactions error:', error);
-        res.status(500).json({ message: 'Failed to fetch profit transactions' });
-    }
-});
 
 module.exports = router;

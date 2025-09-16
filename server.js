@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/database');
-const cronService = require('./services/cronService');
 require('dotenv').config();
 
 const app = express();
@@ -75,21 +74,16 @@ app.use('*', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-
-    // Start cron jobs
-    cronService.start();
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
     console.log('Shutting down gracefully...');
-    cronService.stop();
     process.exit(0);
 });
 
 process.on('SIGTERM', () => {
     console.log('Shutting down gracefully...');
-    cronService.stop();
     process.exit(0);
 });
 

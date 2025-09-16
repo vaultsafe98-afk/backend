@@ -3,7 +3,6 @@ const User = require('../models/User');
 const Deposit = require('../models/Deposit');
 const Withdrawal = require('../models/Withdrawal');
 const Notification = require('../models/Notification');
-const ProfitLog = require('../models/ProfitLog');
 const { adminAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -222,14 +221,8 @@ router.put('/withdraw/:id/approve', adminAuth, async (req, res) => {
 
         // Update user balance
         user.total_amount -= withdrawal.amount;
-        // Deduct from deposit amount first, then profit
-        if (user.deposit_amount >= withdrawal.amount) {
-            user.deposit_amount -= withdrawal.amount;
-        } else {
-            const remaining = withdrawal.amount - user.deposit_amount;
-            user.deposit_amount = 0;
-            user.profit_amount -= remaining;
-        }
+        // Deduct from deposit amount
+        user.deposit_amount -= withdrawal.amount;
         await user.save();
 
         // Create notification
@@ -302,10 +295,6 @@ router.get('/reports/summary', adminAuth, async (req, res) => {
             { $group: { _id: null, total: { $sum: '$amount' } } }
         ]);
 
-        const totalProfits = await ProfitLog.aggregate([
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]);
-
         const pendingDeposits = await Deposit.countDocuments({ status: 'pending' });
         const pendingWithdrawals = await Withdrawal.countDocuments({ status: 'pending' });
 
@@ -313,7 +302,6 @@ router.get('/reports/summary', adminAuth, async (req, res) => {
             totalUsers: totalUsers,
             totalDeposits: totalDeposits[0]?.total || 0,
             totalWithdrawals: totalWithdrawals[0]?.total || 0,
-            totalProfits: totalProfits[0]?.total || 0,
             pendingDeposits,
             pendingWithdrawals
         });
@@ -344,7 +332,7 @@ router.get('/users', adminAuth, async (req, res) => {
         }
 
         const users = await User.find(query)
-            .select('first_name last_name email deposit_amount profit_amount total_amount status role created_at')
+            .select('first_name last_name email deposit_amount total_amount status role created_at')
             .sort({ created_at: -1 })
             .skip(skip)
             .limit(limit);
@@ -357,7 +345,6 @@ router.get('/users', adminAuth, async (req, res) => {
             lastName: user.last_name,
             email: user.email,
             depositAmount: user.deposit_amount,
-            profitAmount: user.profit_amount,
             totalAmount: user.total_amount,
             status: user.status,
             role: user.role,
@@ -398,7 +385,6 @@ router.get('/users/:id', adminAuth, async (req, res) => {
             email: user.email,
             profileImage: user.profile_image,
             depositAmount: user.deposit_amount,
-            profitAmount: user.profit_amount,
             totalAmount: user.total_amount,
             status: user.status,
             role: user.role,
@@ -717,6 +703,76 @@ router.put('/notifications/read-all', adminAuth, async (req, res) => {
     } catch (error) {
         console.error('Mark all notifications as read by admin error:', error);
         res.status(500).json({ message: 'Failed to mark all notifications as read by admin' });
+    }
+});
+
+// @route   PUT /api/admin/users/:id/balance
+// @desc    Adjust user balance
+// @access  Admin
+router.put('/users/:id/balance', adminAuth, async (req, res) => {
+    try {
+        const { newBalance, reason } = req.body;
+
+        // Validation
+        if (newBalance === undefined || newBalance < 0) {
+            return res.status(400).json({ message: 'New balance must be a non-negative number' });
+        }
+
+        if (!reason || reason.trim().length === 0) {
+            return res.status(400).json({ message: 'Reason for balance adjustment is required' });
+        }
+
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const oldBalance = user.deposit_amount;
+        const balanceChange = newBalance - oldBalance;
+
+        // Update user balance
+        user.deposit_amount = newBalance;
+        user.calculateTotalAmount();
+        await user.save();
+
+        // Create notification for the user
+        let notificationMessage;
+        let notificationType;
+
+        if (balanceChange > 0) {
+            notificationMessage = `Your balance has been increased by $${balanceChange.toFixed(2)}. Reason: ${reason}`;
+            notificationType = 'balance_increase';
+        } else if (balanceChange < 0) {
+            notificationMessage = `Your balance has been decreased by $${Math.abs(balanceChange).toFixed(2)}. Reason: ${reason}`;
+            notificationType = 'balance_decrease';
+        } else {
+            notificationMessage = `Balance adjustment processed. Reason: ${reason}`;
+            notificationType = 'balance_adjustment';
+        }
+
+        const notification = new Notification({
+            user_id: user._id,
+            message: notificationMessage,
+            type: notificationType
+        });
+        await notification.save();
+
+        res.json({
+            message: 'User balance updated successfully',
+            user: {
+                id: user._id,
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                oldBalance,
+                newBalance,
+                balanceChange,
+                totalAmount: user.total_amount
+            }
+        });
+    } catch (error) {
+        console.error('Adjust user balance error:', error);
+        res.status(500).json({ message: 'Failed to adjust user balance' });
     }
 });
 
