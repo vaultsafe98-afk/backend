@@ -806,4 +806,123 @@ router.put('/users/:id/balance', adminAuth, async (req, res) => {
     }
 });
 
+// @route   GET /api/admin/pending-users
+// @desc    Get all pending users
+// @access  Admin
+router.get('/pending-users', adminAuth, async (req, res) => {
+    try {
+        const pendingUsers = await User.find({ account_status: 'pending' })
+            .select('-password')
+            .sort({ created_at: -1 });
+
+        const users = pendingUsers.map(user => ({
+            id: user._id,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            email: user.email,
+            profileImage: user.profile_image,
+            depositAmount: user.deposit_amount,
+            totalAmount: user.total_amount,
+            status: user.status,
+            accountStatus: user.account_status,
+            createdAt: user.created_at
+        }));
+
+        res.json(users);
+    } catch (error) {
+        console.error('Get pending users error:', error);
+        res.status(500).json({ message: 'Failed to fetch pending users' });
+    }
+});
+
+// @route   PUT /api/admin/users/:id/approve
+// @desc    Approve user account
+// @access  Admin
+router.put('/users/:id/approve', adminAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (user.account_status !== 'pending') {
+            return res.status(400).json({ message: 'User account is not pending approval' });
+        }
+
+        // Update account status
+        user.account_status = 'approved';
+        await user.save();
+
+        // Create notification for the user
+        const notification = new Notification({
+            user_id: user._id,
+            message: 'Congratulations! Your account has been approved. You can now access all features of SafeVault.',
+            type: 'general'
+        });
+        await notification.save();
+
+        res.json({
+            message: 'User account approved successfully',
+            user: {
+                id: user._id,
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                accountStatus: user.account_status
+            }
+        });
+    } catch (error) {
+        console.error('Approve user error:', error);
+        res.status(500).json({ message: 'Failed to approve user account' });
+    }
+});
+
+// @route   PUT /api/admin/users/:id/reject
+// @desc    Reject user account
+// @access  Admin
+router.put('/users/:id/reject', adminAuth, async (req, res) => {
+    try {
+        const { reason } = req.body;
+
+        if (!reason || reason.trim().length === 0) {
+            return res.status(400).json({ message: 'Reason for rejection is required' });
+        }
+
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (user.account_status !== 'pending') {
+            return res.status(400).json({ message: 'User account is not pending approval' });
+        }
+
+        // Update account status
+        user.account_status = 'rejected';
+        await user.save();
+
+        // Create notification for the user
+        const notification = new Notification({
+            user_id: user._id,
+            message: `Your account has been rejected. Reason: ${reason}. Please contact support if you have any questions.`,
+            type: 'general'
+        });
+        await notification.save();
+
+        res.json({
+            message: 'User account rejected successfully',
+            user: {
+                id: user._id,
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                accountStatus: user.account_status
+            }
+        });
+    } catch (error) {
+        console.error('Reject user error:', error);
+        res.status(500).json({ message: 'Failed to reject user account' });
+    }
+});
+
 module.exports = router;

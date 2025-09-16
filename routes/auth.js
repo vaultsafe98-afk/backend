@@ -37,9 +37,6 @@ router.post('/register', validateRegistration, async (req, res) => {
 
         await user.save();
 
-        // Generate token
-        const token = generateToken(user._id);
-
         // Return user data (without password)
         const userData = {
             id: user._id,
@@ -50,14 +47,26 @@ router.post('/register', validateRegistration, async (req, res) => {
             depositAmount: user.deposit_amount,
             totalAmount: user.total_amount,
             status: user.status,
+            accountStatus: user.account_status,
             createdAt: user.created_at
         };
 
-        res.status(201).json({
-            message: 'User registered successfully',
-            token,
-            user: userData
-        });
+        // Only generate token if account is approved
+        if (user.account_status === 'approved') {
+            const token = generateToken(user._id);
+            res.status(201).json({
+                message: 'User registered successfully',
+                token,
+                user: userData
+            });
+        } else {
+            // For pending users, don't return token
+            res.status(201).json({
+                message: 'Registration successful. Your account is under review and will be activated after admin approval.',
+                user: userData,
+                requiresApproval: true
+            });
+        }
     } catch (error) {
         console.error('Registration error:', error);
         res.status(500).json({ message: 'Server error during registration' });
@@ -82,6 +91,21 @@ router.post('/login', validateLogin, async (req, res) => {
             return res.status(403).json({ message: 'Account is blocked' });
         }
 
+        // Check account status
+        if (user.account_status === 'pending') {
+            return res.status(403).json({
+                message: 'Your account is under review. Please wait for admin approval before you can access your account.',
+                accountStatus: 'pending'
+            });
+        }
+
+        if (user.account_status === 'rejected') {
+            return res.status(403).json({
+                message: 'Your account has been rejected. Please contact support for more information.',
+                accountStatus: 'rejected'
+            });
+        }
+
         // Check password
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
@@ -101,6 +125,7 @@ router.post('/login', validateLogin, async (req, res) => {
             depositAmount: user.deposit_amount,
             totalAmount: user.total_amount,
             status: user.status,
+            accountStatus: user.account_status,
             role: user.role,
             createdAt: user.created_at
         };
@@ -196,6 +221,7 @@ router.post('/verify', async (req, res) => {
             depositAmount: user.deposit_amount,
             totalAmount: user.total_amount,
             status: user.status,
+            accountStatus: user.account_status,
             role: user.role,
             createdAt: user.created_at
         };
