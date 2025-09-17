@@ -3,9 +3,9 @@ const path = require('path');
 
 // ImageKit Configuration
 const imagekit = new ImageKit({
-    publicKey: process.env.IMAGEKIT_PUBLIC_KEY || 'public_placeholder',
-    privateKey: process.env.IMAGEKIT_PRIVATE_KEY || 'private_placeholder',
-    urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/placeholder'
+    publicKey: process.env.IMAGEKIT_PUBLIC_KEY || 'public_68Igyt2HkOVc+4ZhCP1LJASGGMA=',
+    privateKey: process.env.IMAGEKIT_PRIVATE_KEY || 'private_K81hQUDrYEfx6dq58J/xR55lzLA=',
+    urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/d4xs333wi'
 });
 
 class ImageKitService {
@@ -22,14 +22,15 @@ class ImageKitService {
                 size: file.buffer?.length
             });
 
-            // For development, return mock URL if credentials are not set or are placeholders
+            // Check if we have real ImageKit credentials
             if (!process.env.IMAGEKIT_PUBLIC_KEY ||
                 process.env.IMAGEKIT_PUBLIC_KEY === 'public_placeholder' ||
                 process.env.IMAGEKIT_PUBLIC_KEY === 'your_imagekit_public_key') {
-                console.log('Using mock ImageKit upload for development');
+                console.log('Using mock ImageKit upload - no real credentials found');
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 const fileName = `${folder}/${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
-                const mockUrl = `https://ik.imagekit.io/mock-id/${fileName}`;
+                // For now, return a simple placeholder URL that works
+                const mockUrl = `https://picsum.photos/800/600?random=${Date.now()}`;
                 console.log('Mock ImageKit upload successful:', mockUrl);
                 return mockUrl;
             }

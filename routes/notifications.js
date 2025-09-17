@@ -56,10 +56,8 @@ router.get('/', auth, async (req, res) => {
         });
 
         const notificationList = notifications.map(notification => {
-            // Ensure we're getting the proper ObjectId string
-            const notificationId = notification._id.toString();
             const mappedNotification = {
-                id: notificationId,
+                _id: notification._id,  // Use _id directly
                 message: notification.message,
                 type: notification.type,
                 status: notification.user_status,
@@ -67,11 +65,9 @@ router.get('/', auth, async (req, res) => {
                 date: notification.created_at
             };
             console.log('Mapping notification:', {
-                originalId: notification._id,
-                originalIdType: typeof notification._id,
-                mappedId: mappedNotification.id,
-                idLength: mappedNotification.id?.length,
-                idString: String(mappedNotification.id),
+                _id: notification._id,
+                _idType: typeof notification._id,
+                _idString: String(notification._id),
                 isObjectId: notification._id instanceof require('mongoose').Types.ObjectId
             });
             return mappedNotification;
@@ -107,18 +103,9 @@ router.put('/:id/read', auth, async (req, res) => {
             return res.status(400).json({ message: 'Notification ID is required' });
         }
 
-        // Convert string ID back to ObjectId for database query
-        const mongoose = require('mongoose');
-        let objectId;
-        try {
-            objectId = new mongoose.Types.ObjectId(notificationId);
-        } catch (error) {
-            console.error('Invalid ObjectId format:', notificationId, error);
-            return res.status(400).json({ message: 'Invalid notification ID format' });
-        }
-
+        // Use _id directly - no conversion needed
         const notification = await Notification.findOne({
-            _id: objectId,
+            _id: notificationId,  // Direct string match
             user_id: req.user._id
         });
 

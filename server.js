@@ -46,6 +46,7 @@ app.use('/api/withdraw', require('./routes/withdraw'));
 app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/imagekit', require('./routes/imagekit'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
