@@ -56,6 +56,18 @@ const userSchema = new mongoose.Schema({
         enum: ['pending', 'approved', 'rejected'],
         default: 'pending'
     },
+    trc_address: {
+        type: String,
+        default: null,
+        trim: true,
+        validate: {
+            validator: function (v) {
+                // TRC-20 addresses start with 'T' and are 34 characters long
+                return !v || (v.startsWith('T') && v.length === 34);
+            },
+            message: 'TRC address must start with T and be 34 characters long'
+        }
+    },
     created_at: {
         type: Date,
         default: Date.now

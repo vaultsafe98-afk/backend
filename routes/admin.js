@@ -362,7 +362,7 @@ router.get('/users', adminAuth, async (req, res) => {
         }
 
         const users = await User.find(query)
-            .select('first_name last_name email deposit_amount total_amount status role created_at')
+            .select('first_name last_name email deposit_amount total_amount status role created_at trc_address')
             .sort({ created_at: -1 })
             .skip(skip)
             .limit(limit);
@@ -378,7 +378,8 @@ router.get('/users', adminAuth, async (req, res) => {
             totalAmount: user.total_amount,
             status: user.status,
             role: user.role,
-            createdAt: user.created_at
+            createdAt: user.created_at,
+            trcAddress: user.trc_address
         }));
 
         res.json({
@@ -836,10 +837,21 @@ router.get('/pending-users', adminAuth, async (req, res) => {
 });
 
 // @route   PUT /api/admin/users/:id/approve
-// @desc    Approve user account
+// @desc    Approve user account and assign TRC address
 // @access  Admin
 router.put('/users/:id/approve', adminAuth, async (req, res) => {
     try {
+        const { trcAddress } = req.body;
+
+        // Validate TRC address
+        if (!trcAddress) {
+            return res.status(400).json({ message: 'TRC address is required for approval' });
+        }
+
+        if (!trcAddress.startsWith('T') || trcAddress.length !== 34) {
+            return res.status(400).json({ message: 'Invalid TRC address format. Must start with T and be 34 characters long' });
+        }
+
         const user = await User.findById(req.params.id);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -849,14 +861,17 @@ router.put('/users/:id/approve', adminAuth, async (req, res) => {
             return res.status(400).json({ message: 'User account is not pending approval' });
         }
 
-        // Update account status
+        // Note: TRC addresses can be shared among multiple users
+
+        // Update account status and assign TRC address
         user.account_status = 'approved';
+        user.trc_address = trcAddress;
         await user.save();
 
         // Create notification for the user
         const notification = new Notification({
             user_id: user._id,
-            message: 'Congratulations! Your account has been approved. You can now access all features of SafeVault.',
+            message: `Congratulations! Your account has been approved. Your unique USDT deposit address is: ${trcAddress}. You can now make deposits using this address.`,
             type: 'general'
         });
         await notification.save();
@@ -868,7 +883,8 @@ router.put('/users/:id/approve', adminAuth, async (req, res) => {
                 email: user.email,
                 firstName: user.first_name,
                 lastName: user.last_name,
-                accountStatus: user.account_status
+                accountStatus: user.account_status,
+                trcAddress: user.trc_address
             }
         });
     } catch (error) {
@@ -922,6 +938,59 @@ router.put('/users/:id/reject', adminAuth, async (req, res) => {
     } catch (error) {
         console.error('Reject user error:', error);
         res.status(500).json({ message: 'Failed to reject user account' });
+    }
+});
+
+// @route   PUT /api/admin/users/:id/trc-address
+// @desc    Update user's TRC address
+// @access  Private (Admin only)
+router.put('/users/:id/trc-address', adminAuth, async (req, res) => {
+    try {
+        const { trcAddress } = req.body;
+
+        if (!trcAddress || trcAddress.trim().length === 0) {
+            return res.status(400).json({ message: 'TRC address is required' });
+        }
+
+        // Validate TRC address format
+        if (!trcAddress.startsWith('T') || trcAddress.length !== 34) {
+            return res.status(400).json({
+                message: 'Invalid TRC address format. Must start with T and be 34 characters long'
+            });
+        }
+
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update TRC address
+        const oldTrcAddress = user.trc_address;
+        user.trc_address = trcAddress;
+        await user.save();
+
+        // Create notification for the user
+        const notification = new Notification({
+            user_id: user._id,
+            message: `Your TRC address has been updated to: ${trcAddress}. Please use this address for future deposits.`,
+            type: 'general'
+        });
+        await notification.save();
+
+        res.json({
+            message: 'TRC address updated successfully',
+            user: {
+                id: user._id,
+                email: user.email,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                trcAddress: user.trc_address,
+                oldTrcAddress: oldTrcAddress
+            }
+        });
+    } catch (error) {
+        console.error('Update TRC address error:', error);
+        res.status(500).json({ message: 'Failed to update TRC address' });
     }
 });
 

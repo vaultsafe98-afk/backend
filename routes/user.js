@@ -43,6 +43,8 @@ router.get('/profile', auth, async (req, res) => {
             totalAmount: user.total_amount,
             status: user.status,
             role: user.role,
+            accountStatus: user.account_status,
+            trcAddress: user.trc_address,
             createdAt: user.created_at,
             updatedAt: user.updated_at
         };
@@ -154,6 +156,42 @@ router.delete('/profile-image', auth, async (req, res) => {
     } catch (error) {
         console.error('Profile image delete error:', error);
         res.status(500).json({ message: 'Failed to delete profile image' });
+    }
+});
+
+// @route   GET /api/user/trc-address
+// @desc    Get user's TRC address for deposits
+// @access  Private
+router.get('/trc-address', auth, async (req, res) => {
+    try {
+        console.log('Getting TRC address for user:', req.user._id);
+        const user = await User.findById(req.user._id).select('trc_address account_status');
+console.log('User:', user);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (user.account_status !== 'approved') {
+            return res.status(403).json({
+                message: 'Account not approved yet. Please wait for admin approval.',
+                accountStatus: user.account_status
+            });
+        }
+
+        if (!user.trc_address) {
+            return res.status(404).json({
+                message: 'TRC address not assigned yet. Please contact admin.',
+                accountStatus: user.account_status
+            });
+        }
+
+        res.json({
+            trcAddress: user.trc_address,
+            accountStatus: user.account_status
+        });
+    } catch (error) {
+        console.error('Get TRC address error:', error);
+        res.status(500).json({ message: 'Failed to get TRC address' });
     }
 });
 
